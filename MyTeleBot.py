@@ -133,7 +133,7 @@ def crop_fill(imagefile, params):
     width, height = image.size[0], image.size[1]
     width_user, height_user = params['size']
 
-    if min(width, height) == height:
+    if (width > height) ^ (width_user > height_user):
         width_user, height_user = height_user, width_user
 
     crop_fill.__dict__['size'] = (width_user, height_user)
