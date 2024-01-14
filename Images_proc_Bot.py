@@ -6,10 +6,19 @@ from PIL import Image
 import re
 
 
+class User:
+    users = dict()
+    def __init__(self, chat_id, first_name):
+        self.chat_id = chat_id
+        self.first_name = first_name
+        self.actions = {}
+
+
 with open('token.txt', encoding='utf-8') as f:
     token = f.read().rstrip()  # Токен
 
 bot = telebot.TeleBot(token)
+
 
 def jpg2webp(jpg_file, path):
     '''Конвертирует изображение формата jpg в формат webp'''
@@ -43,10 +52,11 @@ def download_file(bot, file_id, orig_name=None, folder=''):
     downloaded_file = bot.download_file(file_info.file_path)
     if orig_name is not None:
         point_i = orig_name.rfind('.')
-        filename = f'{orig_name[:point_i]}_edited{orig_name[point_i:]}'
+        filename = f'{folder}/{orig_name[:point_i]}_edited{orig_name[point_i:]}'
     else:
         filename = file_id + file_info.file_path
         filename = filename.replace('/', '_')
+        filename = f'{folder}/{filename}'
     with open(filename, 'wb') as f:
         f.write(downloaded_file)
     return filename
@@ -55,6 +65,7 @@ def download_file(bot, file_id, orig_name=None, folder=''):
 @bot.message_handler(commands=['start'])
 def start(message):
     '''Задаёт действия при нажатии на start'''
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton('Получить стикер')
     btn2 = types.KeyboardButton('Задать вопрос')
@@ -65,11 +76,11 @@ def start(message):
     if message.text == '/start':
         send_text = f'Привет, {message.chat.first_name}!'
     else:
-        width, height = crop_fill.__dict__['size']
+        width, height = User.users[message.chat.id].actions.get('size', (None, None))
         send_text = f'Держи документы.\nРазмер: {width}x{height} px. DPI: 300'
+    User.users[message.chat.id] = User(message.chat.id, message.chat.first_name)
     bot.send_message(message.chat.id, send_text, reply_markup=markup)
     bot.send_message(message.chat.id, text='Выбери действие:', reply_markup=markup_inline)
-
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -81,7 +92,10 @@ def inline_keyboard(call):
         add_field_btn = types.InlineKeyboardButton('Добавить поля', callback_data='field_add')
         markup1.add(crop_btn, add_field_btn)
         print('test')
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text='Выбери действие:',
+        folder_name = f'images_of_{call.message.chat.id}'
+        if call.data != 'back_1' and not os.path.exists(folder_name):
+            os.mkdir(folder_name)
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id, text='Выбери действие:',
                               reply_markup=markup1)
     if call.data in ('crop', 'field_add', 'back_2'):
         markup2 = types.InlineKeyboardMarkup(row_width=2)
@@ -91,9 +105,10 @@ def inline_keyboard(call):
         back_btn = types.InlineKeyboardButton('Назад', callback_data='back_1')
         markup2.add(size_btn1, size_btn2, size_btn3, back_btn)
         if call.data != 'back_2':
-            inline_keyboard.action = call.data
+            User.users[call.message.chat.id].actions['action'] = call.data
+            print(User.users[call.message.chat.id].actions)
 
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text='Выбери размер:',
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id, text='Выбери размер:',
                               reply_markup=markup2)
 
     markup3 = types.InlineKeyboardMarkup()
@@ -101,13 +116,13 @@ def inline_keyboard(call):
     markup3.add(btn)
 
     if call.data in ('size_1', 'size_2'):
-        inline_keyboard.size = (1205, 1795) if call.data == 'size_1' else (1795, 2398)
-        print(inline_keyboard.__dict__)
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+        User.users[call.message.chat.id].actions['size'] = (1205, 1795) if call.data == 'size_1' else (1795, 2398)
+        print(User.users[call.message.chat.id].actions)
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id,
                               text='Загрузи изображения как <b>документы</b>', reply_markup=markup3, parse_mode='HTML')
         send_done_mes(call.message)
     elif call.data == 'custom_size':
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id,
                               text='Введи размеры изображения через пробел', reply_markup=markup3)
 
 
@@ -143,8 +158,6 @@ def crop_fill(imagefile, params):
     if (width > height) ^ (width_user > height_user):
         width_user, height_user = height_user, width_user
 
-    crop_fill.__dict__['size'] = (width_user, height_user)
-
     w_scale, h_scale = width_user / width, height_user / height
     if params['action'] == 'crop':
         scale = max(w_scale, h_scale)
@@ -164,31 +177,35 @@ def crop_fill(imagefile, params):
 def make_mediadocument(message):
     '''Отправляет обработанные изображения как группу'''
     media_group = []
-    for file in send_image.__dict__['mediaphoto']:
-        media_group.append(types.InputMediaDocument(media=open(file, 'rb')))
-    bot.send_media_group(chat_id=message.chat.id, media=media_group)
+    if send_image.__dict__:
+        for file in send_image.__dict__['mediaphoto']:
+            media_group.append(types.InputMediaDocument(media=open(file, 'rb')))
+        bot.send_media_group(chat_id=message.chat.id, media=media_group)
 
-    for input_media in media_group:
-        input_media.media.close()
-    for file in send_image.__dict__['mediaphoto']:
-        if os.path.exists(file):
-            os.remove(file)
-    send_image.__dict__['mediaphoto'].clear()
-
+        for input_media in media_group:
+            input_media.media.close()
+        for file in send_image.__dict__['mediaphoto']:
+            if os.path.exists(file):
+                os.remove(file)
+        send_image.__dict__['mediaphoto'].clear()
+        start(message)
+    else:
+        bot.send_message(message.chat.id, 'Загрузи изображения')
 
 
 @bot.message_handler(content_types=['photo', 'document'])
 def send_image(message):
     '''Загружает фото или документ, обрабатывает его'''
+    user_folder = f'images_of_{message.chat.id}'
     if message.photo:
         file_id = message.photo[-1].file_id
         original_filename = None
     else:
         original_filename = message.document.file_name
         file_id = message.document.file_id
-    filename = download_file(bot, file_id, original_filename)
-    print(inline_keyboard.__dict__)
-    filename = crop_fill(filename, inline_keyboard.__dict__)
+
+    filename = download_file(bot, file_id, original_filename, user_folder)
+    filename = crop_fill(filename, User.users[message.chat.id].actions)
     send_image.__dict__.setdefault('mediaphoto', []).append(filename)
 
 
@@ -206,7 +223,6 @@ def smth_doing(message):
         stick.close()
     elif message.text == 'Готово':
         make_mediadocument(message)
-        start(message)
     elif re.fullmatch(r'\d+ \d+', message.text):
         input_size(message)
 
@@ -218,7 +234,7 @@ def input_size(message):
         print(temp1, temp2)
         if not 480 < temp1 < 8000 or not 480 < temp2 < 8000:
             raise ValueError
-        inline_keyboard.size = temp1, temp2
+        User.users[message.chat.id].actions['size'] = temp1, temp2
         send_load_mes(message)
     except ValueError:
         bot.send_message(message.chat.id, 'Числа должны быть из диапазона 480-8000')
