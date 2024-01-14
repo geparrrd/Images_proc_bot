@@ -5,13 +5,14 @@ from random import choice
 from PIL import Image
 import re
 
-# Ниже нужно вставить токен, который дал BotFather при регистрации
+
 with open('token.txt', encoding='utf-8') as f:
-    token = f.read().rstrip()  # <<< Ваш токен
+    token = f.read().rstrip()  # Токен
 
 bot = telebot.TeleBot(token)
 
 def jpg2webp(jpg_file, path):
+    '''Конвертирует изображение формата jpg в формат webp'''
     new_file = jpg_file.replace('jpg', 'webp')
     with Image.open(path + jpg_file) as f:
         f = f.convert('RGB')
@@ -31,12 +32,13 @@ def get_webp_images(path):
     return list_webp
 
 def getsticker(path):
+    '''Возвращает рандомный стикер из списка'''
     cash = get_webp_images(path)
     return path + choice(cash)
 
 
 def download_file(bot, file_id, orig_name=None, folder=''):
-    # Скачивание файла, который прислал пользователь
+    '''Скачивание файла, который прислал пользователь'''
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
     if orig_name is not None:
@@ -52,6 +54,7 @@ def download_file(bot, file_id, orig_name=None, folder=''):
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    '''Задаёт действия при нажатии на start'''
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton('Получить стикер')
     btn2 = types.KeyboardButton('Задать вопрос')
@@ -71,7 +74,7 @@ def start(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def inline_keyboard(call):
-
+    '''Функционал inline-клавиатуры'''
     if call.data in ('back_1', 'process_photo'):
         markup1 = types.InlineKeyboardMarkup(row_width=2)
         crop_btn = types.InlineKeyboardButton('Обрезать фото', callback_data='crop')
@@ -109,6 +112,7 @@ def inline_keyboard(call):
 
 
 def send_done_mes(message):
+    '''Отправляет сообщение и выдаёт кнопку "Готово"'''
     markup4 = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup4.row('Готово')
     arrow = u"\u21D3"
@@ -117,10 +121,12 @@ def send_done_mes(message):
 
 
 def send_load_mes(message):
+    '''Отправляет сообщение о загрузке изображений'''
     bot.send_message(message.chat.id, 'Загрузи изображения как <b>документы</b>', parse_mode='HTML')
     send_done_mes(message)
 
 def any_answer(message):
+    '''Отправляет рандомный ответ'''
     answers = ['Бесспорно', 'Мне кажется - да', 'Пока не ясно, попробуй снова', 'Даже не думай',
                'Предрешено', 'Вероятнее всего', 'Спроси позже', 'Мой ответ - нет', 'Никаких сомнений',
                'Хорошие перспективы', 'Лучше не рассказывать', 'По моим данным - нет', 'Определённо да',
@@ -129,6 +135,7 @@ def any_answer(message):
     bot.send_message(message.chat.id, choice(answers))
 
 def crop_fill(imagefile, params):
+    '''Обрезает изображение и возвращает его'''
     image = Image.open(imagefile)
     width, height = image.size[0], image.size[1]
     width_user, height_user = params['size']
@@ -155,6 +162,7 @@ def crop_fill(imagefile, params):
     return imagefile
 
 def make_mediadocument(message):
+    '''Отправляет обработанные изображения как группу'''
     media_group = []
     for file in send_image.__dict__['mediaphoto']:
         media_group.append(types.InputMediaDocument(media=open(file, 'rb')))
@@ -171,7 +179,7 @@ def make_mediadocument(message):
 
 @bot.message_handler(content_types=['photo', 'document'])
 def send_image(message):
-
+    '''Загружает фото или документ, обрабатывает его'''
     if message.photo:
         file_id = message.photo[-1].file_id
         original_filename = None
@@ -186,7 +194,7 @@ def send_image(message):
 
 @bot.message_handler(content_types=['text'])
 def smth_doing(message):
-
+    '''Обработчик текстовых сообщений'''
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if message.text == 'Задать вопрос':
         bot.send_message(message.chat.id, 'Задай мне вопрос (ответы типа Да/Нет)')
@@ -204,6 +212,7 @@ def smth_doing(message):
 
 
 def input_size(message):
+    '''Сохраняет пользовательские размеры изображения в атрибут функции inline_keyboard'''
     try:
         temp1, temp2 = map(int, message.text.split())
         inline_keyboard.size = temp1, temp2
