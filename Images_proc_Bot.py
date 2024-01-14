@@ -215,8 +215,14 @@ def input_size(message):
     '''Сохраняет пользовательские размеры изображения в атрибут функции inline_keyboard'''
     try:
         temp1, temp2 = map(int, message.text.split())
+        print(temp1, temp2)
+        if not 480 < temp1 < 8000 or not 480 < temp2 < 8000:
+            raise ValueError
         inline_keyboard.size = temp1, temp2
         send_load_mes(message)
+    except ValueError:
+        bot.send_message(message.chat.id, 'Числа должны быть из диапазона 480-8000')
+        bot.register_next_step_handler(message, input_size)
     except Exception as e:
         print(e)
         bot.send_message(message.chat.id, 'Неверный формат')
