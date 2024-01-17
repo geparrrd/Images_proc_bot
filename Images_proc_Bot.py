@@ -57,8 +57,10 @@ def download_file(bot, file_id, orig_name=None, folder=''):
         filename = file_id + file_info.file_path
         filename = filename.replace('/', '_')
         filename = f'{folder}/{filename}'
+
     with open(filename, 'wb') as f:
         f.write(downloaded_file)
+    print(os.path.getsize(filename))
     return filename
 
 
@@ -151,8 +153,8 @@ def any_answer(message):
 
 def crop_fill(imagefile, params):
     '''Обрезает изображение и возвращает его'''
-    print(imagefile)
     image = Image.open(imagefile)
+
     width, height = image.size[0], image.size[1]
     width_user, height_user = params['size']
 
@@ -166,13 +168,15 @@ def crop_fill(imagefile, params):
         scale = min(w_scale, h_scale)
     new_width, new_height = int(width * scale), int(height * scale)
     image_res = image.resize((new_width, new_height))
+
     if scale == h_scale:
         new_image = image_res.crop(((new_width - width_user) // 2, 0, (new_width + width_user) // 2, height_user))
     else:
         new_image = image_res.crop((0, (new_height - height_user) // 2, width_user, (new_height + height_user) // 2))
 
-    #new_image = new_image.convert('RGB')
-    new_image.save(imagefile, dpi=(150, 150))
+    new_image = new_image.convert('RGB')
+    new_image.save(imagefile, quality=95, dpi=(300, 300))
+    print(os.path.getsize(imagefile))
     return imagefile
 
 def make_mediadocument(message):
@@ -206,7 +210,7 @@ def send_image(message):
         file_id = message.document.file_id
 
     filename = download_file(bot, file_id, original_filename, user_folder)
-    # filename = crop_fill(filename, User.users[message.chat.id].actions)
+    filename = crop_fill(filename, User.users[message.chat.id].actions)
     User.users[message.chat.id].actions.setdefault('mediaphoto', []).append(filename)
 
 
