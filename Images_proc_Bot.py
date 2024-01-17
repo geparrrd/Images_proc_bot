@@ -151,6 +151,7 @@ def any_answer(message):
 
 def crop_fill(imagefile, params):
     '''Обрезает изображение и возвращает его'''
+    print(imagefile)
     image = Image.open(imagefile)
     width, height = image.size[0], image.size[1]
     width_user, height_user = params['size']
@@ -170,24 +171,24 @@ def crop_fill(imagefile, params):
     else:
         new_image = image_res.crop((0, (new_height - height_user) // 2, width_user, (new_height + height_user) // 2))
 
-    new_image = new_image.convert('RGB')
-    new_image.save(imagefile, dpi=(300, 300))
+    #new_image = new_image.convert('RGB')
+    new_image.save(imagefile, dpi=(150, 150))
     return imagefile
 
 def make_mediadocument(message):
-    '''Отправляет обработанные изображения как группу'''
+    '''Отправляет обработанные изображения как группу и удаляет файлы'''
     media_group = []
-    if send_image.__dict__:
-        for file in send_image.__dict__['mediaphoto']:
+    if User.users[message.chat.id].actions.get('mediaphoto', False):
+        for file in User.users[message.chat.id].actions['mediaphoto']:
             media_group.append(types.InputMediaDocument(media=open(file, 'rb')))
         bot.send_media_group(chat_id=message.chat.id, media=media_group)
 
         for input_media in media_group:
             input_media.media.close()
-        for file in send_image.__dict__['mediaphoto']:
+        for file in User.users[message.chat.id].actions['mediaphoto']:
             if os.path.exists(file):
                 os.remove(file)
-        send_image.__dict__['mediaphoto'].clear()
+        User.users[message.chat.id].actions['mediaphoto'].clear()
         start(message)
     else:
         bot.send_message(message.chat.id, 'Загрузи изображения')
@@ -205,8 +206,8 @@ def send_image(message):
         file_id = message.document.file_id
 
     filename = download_file(bot, file_id, original_filename, user_folder)
-    filename = crop_fill(filename, User.users[message.chat.id].actions)
-    send_image.__dict__.setdefault('mediaphoto', []).append(filename)
+    # filename = crop_fill(filename, User.users[message.chat.id].actions)
+    User.users[message.chat.id].actions.setdefault('mediaphoto', []).append(filename)
 
 
 @bot.message_handler(content_types=['text'])
