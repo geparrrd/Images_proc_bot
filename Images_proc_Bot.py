@@ -97,8 +97,8 @@ def inline_keyboard(call):
         folder_name = f'images_of_{call.message.chat.id}'
         if call.data != 'back_1' and not os.path.exists(folder_name):
             os.mkdir(folder_name)
-        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id, text='Выбери действие:',
-                              reply_markup=markup1)
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id,
+                              text='Выбери действие:', reply_markup=markup1)
     if call.data in ('crop', 'field_add', 'back_2'):
         markup2 = types.InlineKeyboardMarkup(row_width=2)
         size_btn1 = types.InlineKeyboardButton('1205х1795', callback_data='size_1')
@@ -110,8 +110,8 @@ def inline_keyboard(call):
             User.users[call.message.chat.id].actions['action'] = call.data
             print(User.users[call.message.chat.id].actions)
 
-        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id, text='Выбери размер:',
-                              reply_markup=markup2)
+        bot.edit_message_text(chat_id=User.users[call.message.chat.id].chat_id, message_id=call.message.message_id,
+                              text='Выбери размер:', reply_markup=markup2)
 
     markup3 = types.InlineKeyboardMarkup()
     btn = types.InlineKeyboardButton('Назад', callback_data='back_2')
@@ -192,6 +192,7 @@ def make_mediadocument(message):
         for file in User.users[message.chat.id].actions['mediaphoto']:
             if os.path.exists(file):
                 os.remove(file)
+
         User.users[message.chat.id].actions['mediaphoto'].clear()
         start(message)
     else:
@@ -233,7 +234,7 @@ def smth_doing(message):
 
 
 def input_size(message):
-    '''Сохраняет пользовательские размеры изображения в атрибут функции inline_keyboard'''
+    '''Принимает пользовательские размеры изображения'''
     try:
         temp1, temp2 = map(int, message.text.split())
         print(temp1, temp2)
